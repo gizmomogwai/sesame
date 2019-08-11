@@ -18,7 +18,7 @@ string totp(Digest)(Digest digest, long interval, int digits)
     auto offset = code[$ - 1] & 0x0f;
     auto otpBytes = code[offset .. offset + 4];
 
-    auto otp = read!(int, std.system.Endian.bigEndian)(otpBytes);
+    auto otp = read!(int, Endian.bigEndian)(otpBytes);
     otp = otp & 0x7FFFFFFF;
     otp = otp % (pow(10, digits));
 
@@ -79,8 +79,10 @@ class OTPAuth
 
     override string toString()
     {
+        // dmft off
         return "otpauth://totp/" ~ this.account ~ "?secret=" ~ this.secret ~ "&algorithm=" ~ algorithm
             ~ "&period=" ~ period.to!string ~ "&digits=" ~ digits.to!string ~ "&issuer=" ~ issuer;
+        // dfmt on
     }
 }
 
@@ -114,9 +116,11 @@ int main(string[] args)
 {
     bool asciiTable = false;
     bool edit = false;
-    auto result = getopt(args, "asciiTable|t", "Render as table", &asciiTable,
-            "edit|e", "Edit data", &edit);
-
+    // dfmt off
+    auto result = getopt(args,
+                         "asciiTable|t", "Render as table", &asciiTable,
+                         "edit|e", "Edit data", &edit);
+    // dfmt on
     if (result.helpWanted)
     {
         defaultGetoptPrinter("sesam", result.options);
@@ -177,5 +181,6 @@ int main(string[] args)
             .writeln;
     }
     // dfmt on
+
     return 0;
 }
