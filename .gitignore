@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/sesam
+sesam.so
+sesam.dylib
+sesam.dll
+sesam.a
+sesam.lib
+sesam-test-*
+*.exe
+*.o
+*.obj
+*.lst
