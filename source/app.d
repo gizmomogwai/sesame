@@ -7,8 +7,9 @@ import std;
 import std;
 import url;
 
-string totp(Digest)(Digest digest, long interval, int digits)
+string totp(Digest)(Digest digest, long time, int period, int digits)
 {
+    auto interval = time / period;
     digest.start;
 
     auto intervalBytes = nativeToBigEndian(interval);
@@ -25,16 +26,16 @@ string totp(Digest)(Digest digest, long interval, int digits)
     return format("%0" ~ digits.to!string ~ "d", otp);
 }
 
-auto totp(string digest, ubyte[] secret, long interval, int digits)
+auto totp(string digest, ubyte[] secret, long time, int period, int digits)
 {
     switch (digest)
     {
     case "SHA1":
-        return hmac!SHA1(secret).totp(interval, digits);
+        return hmac!SHA1(secret).totp(time, period, digits);
     case "SHA256":
-        return hmac!SHA256(secret).totp(interval, digits);
+        return hmac!SHA256(secret).totp(time, period, digits);
     case "SHA512":
-        return hmac!SHA512(secret).totp(interval, digits);
+        return hmac!SHA512(secret).totp(time, period, digits);
     default:
         throw new Exception("Cannot handle digest '" ~ digest ~ "'");
     }
@@ -155,18 +156,18 @@ int main(string[] args)
             table.row()
                 .add(otpauth.issuer.green)
                 .add(otpauth.account)
-                .add(totp(otpauth.algorithm, Base32.decode(otpauth.secret), interval - 1, otpauth.digits))
-                .add(totp(otpauth.algorithm, Base32.decode(otpauth.secret), interval + 0, otpauth.digits).green)
-                .add(totp(otpauth.algorithm, Base32.decode(otpauth.secret), interval + 1, otpauth.digits));
+                .add(totp(otpauth.algorithm, Base32.decode(otpauth.secret), now - otpauth.period, otpauth.period, otpauth.digits))
+                .add(totp(otpauth.algorithm, Base32.decode(otpauth.secret), now , otpauth.period, otpauth.digits).green)
+                .add(totp(otpauth.algorithm, Base32.decode(otpauth.secret), now + otpauth.period, otpauth.period, otpauth.digits));
         }
         else
         {
             writeln(otpauth.issuer.green, "/", otpauth.account, ": ",
-                    totp(otpauth.algorithm, Base32.decode(otpauth.secret), interval - 1, otpauth.digits),
+                    totp(otpauth.algorithm, Base32.decode(otpauth.secret), now - otpauth.period, otpauth.period, otpauth.digits),
                     " ",
-                    totp(otpauth.algorithm, Base32.decode(otpauth.secret), interval, otpauth.digits).green,
+                    totp(otpauth.algorithm, Base32.decode(otpauth.secret), now, otpauth.period, otpauth.digits).green,
                     " ",
-                    totp(otpauth.algorithm, Base32.decode(otpauth.secret), interval + 1, otpauth.digits)
+                    totp(otpauth.algorithm, Base32.decode(otpauth.secret), now + otpauth.period, otpauth.period, otpauth.digits)
             );
         }
     }
