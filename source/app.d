@@ -7,39 +7,6 @@ import std;
 import std;
 import url;
 
-string totp(Digest)(Digest digest, long time, int period, int digits)
-{
-    auto interval = time / period;
-    digest.start;
-
-    auto intervalBytes = nativeToBigEndian(interval);
-    digest.put(intervalBytes);
-
-    auto code = digest.finish;
-    auto offset = code[$ - 1] & 0x0f;
-    auto otpBytes = code[offset .. offset + 4];
-
-    auto otp = read!(int, Endian.bigEndian)(otpBytes);
-    otp = otp & 0x7FFFFFFF;
-    otp = otp % (pow(10, digits));
-
-    return format("%0" ~ digits.to!string ~ "d", otp);
-}
-
-auto totp(string digest, ubyte[] secret, long time, int period, int digits)
-{
-    switch (digest)
-    {
-    case "SHA1":
-        return hmac!SHA1(secret).totp(time, period, digits);
-    case "SHA256":
-        return hmac!SHA256(secret).totp(time, period, digits);
-    case "SHA512":
-        return hmac!SHA512(secret).totp(time, period, digits);
-    default:
-        throw new Exception("Cannot handle digest '" ~ digest ~ "'");
-    }
-}
 
 V frontOrDefault(R, V)(R range, V defaultValue = V.init)
 {
@@ -58,6 +25,7 @@ class OTPAuth
     int period;
     int digits;
     string issuer;
+
     this(URL url)
     {
         if (url.scheme != "otpauth")
@@ -80,10 +48,48 @@ class OTPAuth
 
     override string toString()
     {
-        // dmft off
-        return "otpauth://totp/" ~ this.account ~ "?secret=" ~ this.secret ~ "&algorithm=" ~ algorithm
-            ~ "&period=" ~ period.to!string ~ "&digits=" ~ digits.to!string ~ "&issuer=" ~ issuer;
+        // dfmt off
+        return "otpauth://totp/" ~ this.account
+            ~ "?secret=" ~ this.secret
+            ~ "&algorithm=" ~ algorithm
+            ~ "&period=" ~ period.to!string
+            ~ "&digits=" ~ digits.to!string
+            ~ "&issuer=" ~ issuer;
         // dfmt on
+    }
+
+    string totp(Digest)(Digest digest, long time)
+    {
+        auto interval = time / period;
+        digest.start;
+
+        digest.put(interval.nativeToBigEndian);
+
+        auto code = digest.finish;
+        auto offset = code[$ - 1] & 0x0f;
+        auto otpBytes = code[offset .. offset + 4];
+
+        auto otp = read!(int, Endian.bigEndian)(otpBytes);
+        otp = otp & 0x7FFFFFFF;
+        otp = otp % (pow(10, digits));
+
+        return format("%0" ~ digits.to!string ~ "d", otp);
+    }
+
+    string totp(long time)
+    {
+        auto s = Base32.decode(secret);
+        switch (algorithm)
+        {
+        case "SHA1":
+            return totp(hmac!SHA1(s), time);
+        case "SHA256":
+            return totp(hmac!SHA256(s), time);
+        case "SHA512":
+            return totp(hmac!SHA512(s), time);
+        default:
+            throw new Exception("Cannot handle digest '" ~ algorithm ~ "'");
+        }
     }
 }
 
@@ -102,14 +108,18 @@ int editData()
     auto result = ["gpg", "--decrypt", "--quiet", "--output", filename, sesameAccounts].execute;
     enforce(result.status == 0);
     scope (exit)
+    {
         filename.remove;
+    }
 
     result = (editor ~ " " ~ filename).executeShell;
     enforce(result.status == 0);
 
-    result = ["gpg", "--encrypt", "--recipient", gpgAccount, "--quiet",
-        "--output", sesameAccounts, filename].execute;
+    // dfmt off
+    result = ["gpg", "--encrypt", "--recipient", gpgAccount, "--quiet", "--output", sesameAccounts, filename].execute;
+    // dfmt on
     enforce(result.status == 0);
+
     return 0;
 }
 
@@ -144,30 +154,27 @@ int main(string[] args)
         table.header
             .add("Issuer").add("Account").add("Last").add("Current").add("Next");
     }
-    foreach (otpauth;
-             input
+    foreach (otpauth; input
                  .byLineCopy
-                 .filter!(line => !line.startsWith("#"))
+                 .filter!(not!(line => line.startsWith("#")))
                  .map!(line => new OTPAuth(line.parseURL)))
     {
-        auto interval = now / otpauth.period;
         if (asciiTable)
         {
             table.row()
                 .add(otpauth.issuer.green)
                 .add(otpauth.account)
-                .add(totp(otpauth.algorithm, Base32.decode(otpauth.secret), now - otpauth.period, otpauth.period, otpauth.digits))
-                .add(totp(otpauth.algorithm, Base32.decode(otpauth.secret), now , otpauth.period, otpauth.digits).green)
-                .add(totp(otpauth.algorithm, Base32.decode(otpauth.secret), now + otpauth.period, otpauth.period, otpauth.digits));
+                .add(otpauth.totp(now - otpauth.period))
+                .add(otpauth.totp(now).green)
+                .add(otpauth.totp(now + otpauth.period));
         }
         else
         {
-            writeln(otpauth.issuer.green, "/", otpauth.account, ": ",
-                    totp(otpauth.algorithm, Base32.decode(otpauth.secret), now - otpauth.period, otpauth.period, otpauth.digits),
-                    " ",
-                    totp(otpauth.algorithm, Base32.decode(otpauth.secret), now, otpauth.period, otpauth.digits).green,
-                    " ",
-                    totp(otpauth.algorithm, Base32.decode(otpauth.secret), now + otpauth.period, otpauth.period, otpauth.digits)
+            writeln(otpauth.issuer.green, "/",
+                    otpauth.account, ": ",
+                    otpauth.totp(now - otpauth.period), " ",
+                    otpauth.totp(now).green, " ",
+                    otpauth.totp(now + otpauth.period)
             );
         }
     }
