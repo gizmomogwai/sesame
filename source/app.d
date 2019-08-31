@@ -7,7 +7,6 @@ import std;
 import std;
 import url;
 
-
 V frontOrDefault(R, V)(R range, V defaultValue = V.init)
 {
     if (range.empty)
@@ -145,21 +144,18 @@ int main(string[] args)
 
     auto input = File(environment["HOME"] ~ "/.sesame-accounts.txt");
     auto now = Clock.currTime().toUnixTime;
-    import asciitable;
 
-    auto table = new AsciiTable(5);
-    // dfmt off
+    auto otps = input.byLineCopy.filter!(not!(line => line.startsWith("#")))
+        .map!(line => new OTPAuth(line.parseURL));
     if (asciiTable)
     {
+        import asciitable;
+
+        //dfmt off
+        auto table = new AsciiTable(5);
         table.header
             .add("Issuer").add("Account").add("Last").add("Current").add("Next");
-    }
-    foreach (otpauth; input
-                 .byLineCopy
-                 .filter!(not!(line => line.startsWith("#")))
-                 .map!(line => new OTPAuth(line.parseURL)))
-    {
-        if (asciiTable)
+        foreach (otpauth; otps)
         {
             table.row()
                 .add(otpauth.issuer.green)
@@ -168,18 +164,6 @@ int main(string[] args)
                 .add(otpauth.totp(now).green)
                 .add(otpauth.totp(now + otpauth.period));
         }
-        else
-        {
-            writeln(otpauth.issuer.green, "/",
-                    otpauth.account, ": ",
-                    otpauth.totp(now - otpauth.period), " ",
-                    otpauth.totp(now).green, " ",
-                    otpauth.totp(now + otpauth.period)
-            );
-        }
-    }
-    if (asciiTable)
-    {
         table
             .format
             .parts(new UnicodeParts)
@@ -187,8 +171,22 @@ int main(string[] args)
             .columnSeparator(true)
             .borders(true)
             .writeln;
+        // dfmt on
     }
-    // dfmt on
+    else
+    {
+        foreach (otpauth; otps)
+        {
+            // dfmt off
+            writeln(otpauth.issuer.green, "/",
+                    otpauth.account, ": ",
+                    otpauth.totp(now - otpauth.period), " ",
+                    otpauth.totp(now).green, " ",
+                    otpauth.totp(now + otpauth.period)
+            );
+            // dfmt on
+        }
+    }
 
     return 0;
 }
