@@ -55,10 +55,13 @@ int main(string[] args)
         return editData;
     }
 
-    auto input = File(environment["HOME"] ~ "/.sesame-accounts.txt");
+    auto inputFile = environment["HOME"] ~ "/.sesame-accounts.txt.gpg";
+    auto decodeResult = ["gpg", "--decrypt", "--quiet", inputFile].execute;
+    enforce(decodeResult.status == 0);
+
     auto now = Clock.currTime().toUnixTime;
 
-    auto otps = input.byLineCopy.filter!(not!(line => line.startsWith("#")))
+    auto otps = decodeResult.output.split.filter!(not!(line => line.startsWith("#")))
         .map!(line => new OTPAuth(line.parseURL));
     if (asciiTable)
     {
