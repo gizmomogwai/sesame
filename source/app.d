@@ -24,8 +24,8 @@ int editData()
         filename.remove;
     }
 
-    result = (editor ~ " " ~ filename).executeShell;
-    enforce(result.status == 0);
+    auto exitCode = [editor, filename].spawnProcess.wait;
+    enforce(exitCode == 0);
 
     // dfmt off
     result = ["gpg", "--encrypt", "--recipient", gpgAccount, "--quiet", "--output", sesameAccounts, filename].execute;
