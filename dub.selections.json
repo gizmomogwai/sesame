@@ -1,13 +1,13 @@
 {
 	"fileVersion": 1,
 	"versions": {
-		"asciitable": "0.0.9",
+		"asciitable": "0.0.11",
 		"base32": "0.1.0",
-		"colored": "0.0.21",
-		"dyaml": "0.8.0",
-		"packageversion": "0.0.18",
+		"colored": "0.0.22",
+		"dyaml": "0.8.1",
+		"packageversion": "0.0.19",
 		"tinyendian": "0.2.0",
-		"unit-threaded": "0.8.0",
+		"unit-threaded": "1.0.0",
 		"urld": "2.1.1"
 	}
 }

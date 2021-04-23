@@ -7,9 +7,9 @@ dependency "urld" version="~>2.1.1"
 dependency "base32" version="~>0.1.0"
 
 configuration "sesam" {
-  dependency "dyaml" version="~>0.8.0"
-  dependency "colored" version="~>0.0.21"
-  dependency "asciitable" version="~>0.0.9"
+  dependency "dyaml" version="~>0.8.1"
+  dependency "colored" version="~>0.0.22"
+  dependency "asciitable" version="~>0.0.11"
 
   targetType "executable"
   targetName "sesam"

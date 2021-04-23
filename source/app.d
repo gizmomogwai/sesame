@@ -18,19 +18,19 @@ int editData()
     auto sesameAccounts = home ~ "/.sesame-accounts.txt.gpg";
 
     auto result = ["gpg", "--decrypt", "--quiet", "--output", filename, sesameAccounts].execute;
-    enforce(result.status == 0);
+    (result.status == 0).enforce("Cannot decrypt %s".format(sesameAccounts));
     scope (exit)
     {
         filename.remove;
     }
 
     auto exitCode = [editor, filename].spawnProcess.wait;
-    enforce(exitCode == 0);
+    (exitCode == 0).enforce("Cannot spawn %s".format(editor));
 
     // dfmt off
     result = ["gpg", "--encrypt", "--recipient", gpgAccount, "--quiet", "--output", sesameAccounts, filename].execute;
     // dfmt on
-    enforce(result.status == 0);
+    (result.status == 0).enforce("Cannot encrpyt %s".format(sesameAccounts));
 
     return 0;
 }
@@ -57,7 +57,7 @@ int main(string[] args)
 
     auto inputFile = environment["HOME"] ~ "/.sesame-accounts.txt.gpg";
     auto decodeResult = ["gpg", "--decrypt", "--quiet", inputFile].execute;
-    enforce(decodeResult.status == 0);
+    (decodeResult.status == 0).enforce("Cannot decrypt %s".format(inputFile));
 
     auto now = Clock.currTime().toUnixTime;
 
