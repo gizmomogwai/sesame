@@ -5,42 +5,182 @@ import dyaml;
 import std;
 import url;
 
-int editData()
+int editData(string home, EncryptDecrypt encdec, Node settings)
 {
     import dyaml;
 
-    auto home = environment["HOME"];
     auto editor = environment["EDITOR"];
     auto filename = "/tmp/sesame";
 
-    auto gpgAccount = Loader.fromFile(home ~ "/.sesame.yaml").load()["gpg-account"].as!string;
+    auto accountsBase = home ~ "/.sesame-accounts.txt";
 
-    auto sesameAccounts = home ~ "/.sesame-accounts.txt.gpg";
-
-    auto result = ["gpg", "--decrypt", "--quiet", "--output", filename, sesameAccounts].execute;
-    (result.status == 0).enforce("Cannot decrypt %s".format(sesameAccounts));
+    encdec.decryptToFile(home, settings, accountsBase, filename);
     scope (exit)
     {
         filename.remove;
     }
 
     auto exitCode = [editor, filename].spawnProcess.wait;
-    (exitCode == 0).enforce("Cannot spawn %s".format(editor));
+    (exitCode == 0).enforce("Cannot spawn '%s'".format(editor));
 
-    // dfmt off
-    result = ["gpg", "--encrypt", "--recipient", gpgAccount, "--quiet", "--output", sesameAccounts, filename].execute;
-    // dfmt on
-    (result.status == 0).enforce("Cannot encrpyt %s".format(sesameAccounts));
+    encdec.encrypt(home, settings, filename, accountsBase);
 
     return 0;
+}
+
+class EncryptDecrypt
+{
+    string extension;
+    protected string accountsFile(string accountsBase)
+    {
+        return accountsBase ~ "." ~ extension;
+    }
+
+    protected this(string extension)
+    {
+        this.extension = extension;
+    }
+
+    abstract void decryptToFile(string home, Node settings, string accountsBase, string outputFile);
+    abstract string decryptToString(string home, string accountsBase, Node settings);
+    abstract void encrypt(string home, Node settings, string input, string accountsBase);
+}
+
+class GPGEncryptDecrypt : EncryptDecrypt
+{
+    this()
+    {
+        super("gpg");
+    }
+
+    override void decryptToFile(string home, Node settings, string accountsBase, string outputFile)
+    {
+        auto file = accountsFile(accountsBase);
+        //dfmt off
+        auto result = [
+            "gpg",
+            "--decrypt",
+            "--quiet",
+            "--output", outputFile,
+            file,
+        ].execute;
+        // dfmt on
+        (result.status == 0).enforce("Cannot decrypt '%s'".format(file));
+    }
+
+    override string decryptToString(string home, string accountsBase, Node settings)
+    {
+        auto file = accountsFile(accountsBase);
+        // dfmt off
+        auto result = [
+          "gpg",
+          "--decrypt",
+          "--quiet",
+          file
+        ].execute;
+        // dfmt on
+        (result.status == 0).enforce("Cannot decrypt '%s'".format(file));
+        return result.output;
+    }
+
+    override void encrypt(string home, Node settings, string input, string accountsBase)
+    {
+        auto file = accountsFile(accountsBase);
+        // dfmt off
+        auto result = [
+            "gpg",
+            "--encrypt",
+            "--recipient", settings["gpg-account"].as!string,
+            "--quiet",
+            "--output", file,
+            input
+        ].execute;
+        // dfmt on
+        (result.status == 0).enforce("Cannot encrypt '%s'".format(file));
+    }
+}
+
+class AgeEncryptDecrypt : EncryptDecrypt
+{
+    this()
+    {
+        super("age");
+    }
+
+    override void decryptToFile(string home, Node settings, string accountsBase, string outputFile)
+    {
+        auto file = accountsFile(accountsBase);
+        // dfmt off
+        auto result = [
+            "age",
+            "--decrypt",
+            "--identity",  home ~ "/.age/" ~ settings["age-key"].as!string,
+            "--output", outputFile,
+            file
+        ].execute;
+        // dfmt on
+        (result.status == 0).enforce("Cannot decrypt '%s'".format(file));
+    }
+
+    override string decryptToString(string home, string accountsBase, Node settings)
+    {
+        auto file = accountsFile(accountsBase);
+        // dfmt off
+        auto result = [
+            "age",
+            "--decrypt",
+            "--identity", home ~ "/.age/" ~ settings["age-key"].as!string,
+            file,
+        ].execute;
+        // dfmt on
+        (result.status == 0).enforce("Cannot decrypt '%s'".format(file));
+        return result.output;
+    }
+
+    override void encrypt(string home, Node settings, string input, string accountsBase)
+    {
+        auto file = accountsFile(accountsBase);
+        // dfmt off
+        auto result = [
+            "age",
+            "--encrypt",
+            "--identity", home ~ "/.age/" ~ settings["age-key"].as!string,
+            "--output", file,
+            input,
+        ].execute;
+        // dfmt on
+        (result.status == 0).enforce("Cannot encrypt '%s'".format(file));
+    }
+}
+
+enum Encryption
+{
+    GPG,
+    AGE,
+}
+
+EncryptDecrypt toObject(Encryption e)
+{
+    switch (e) with (Encryption)
+    {
+    case GPG:
+        return new GPGEncryptDecrypt();
+    case AGE:
+        return new AgeEncryptDecrypt();
+    default:
+        false.enforce("Unknown Encryption '%s'".format(e));
+    }
+    assert(false);
 }
 
 int main(string[] args)
 {
     bool asciiTable = false;
     bool edit = false;
+    Encryption encryption = Encryption.GPG;
     // dfmt off
     auto result = getopt(args,
+                         "encryption|c", "Encryption", &encryption,
                          "asciiTable|t", "Render as table", &asciiTable,
                          "edit|e", "Edit data", &edit);
     // dfmt on
@@ -50,18 +190,21 @@ int main(string[] args)
         return 0;
     }
 
+    auto encdec = encryption.toObject;
+
+    auto home = environment["HOME"];
+    auto settings = Loader.fromFile(home ~ "/.sesame.yaml").load();
     if (edit)
     {
-        return editData;
+        return editData(home, encdec, settings);
     }
-
-    auto inputFile = environment["HOME"] ~ "/.sesame-accounts.txt.gpg";
-    auto decodeResult = ["gpg", "--decrypt", "--quiet", inputFile].execute;
-    (decodeResult.status == 0).enforce("Cannot decrypt %s".format(inputFile));
+    auto accountsBase = home ~ "/.sesame-accounts.txt";
+    auto lines = encdec.decryptToString(home, accountsBase, settings);
 
     auto now = Clock.currTime().toUnixTime;
 
-    auto otps = decodeResult.output.split.filter!(not!(line => line.startsWith("#")))
+    auto otps = lines.split
+        .filter!(not!(line => line.startsWith("#")))
         .map!(line => new OTPAuth(line.parseURL));
     if (asciiTable)
     {
