@@ -191,7 +191,7 @@ int main(string[] args)
     bool asciiTable = false;
     bool edit = false;
     auto home = environment["HOME"];
-    auto settingsFile = home ~ "/.sesame.yaml";
+    auto settingsFile = home ~ "/.config/.sesame.yaml";
     auto settings = Loader.fromFile(settingsFile).load();
     Encryption encryption = settings.getWithDefault("encryption", "GPG").to!Encryption;
 
