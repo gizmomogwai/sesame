@@ -173,13 +173,31 @@ EncryptDecrypt toObject(Encryption e)
     assert(false);
 }
 
+auto getWithDefault(Node settings, string key, string defaultValue)
+{
+    if (settings.containsKey(key))
+    {
+        return settings[key].as!string;
+    }
+    else
+    {
+        return defaultValue;
+    }
+}
+
 int main(string[] args)
 {
+    bool verbose = false;
     bool asciiTable = false;
     bool edit = false;
-    Encryption encryption = Encryption.GPG;
+    auto home = environment["HOME"];
+    auto settingsFile = home ~ "/.sesame.yaml";
+    auto settings = Loader.fromFile(settingsFile).load();
+    Encryption encryption = settings.getWithDefault("encryption", "GPG").to!Encryption;
+
     // dfmt off
     auto result = getopt(args,
+                         "verbose|v", "Verbose output", &verbose,
                          "encryption|c", "Encryption", &encryption,
                          "asciiTable|t", "Render as table", &asciiTable,
                          "edit|e", "Edit data", &edit);
@@ -190,15 +208,15 @@ int main(string[] args)
         return 0;
     }
 
+    writeln(encryption);
     auto encdec = encryption.toObject;
 
-    auto home = environment["HOME"];
-    auto settings = Loader.fromFile(home ~ "/.sesame.yaml").load();
     if (edit)
     {
         return editData(home, encdec, settings);
     }
     auto accountsBase = home ~ "/.sesame-accounts.txt";
+
     auto lines = encdec.decryptToString(home, accountsBase, settings);
 
     auto now = Clock.currTime().toUnixTime;
