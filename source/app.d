@@ -5,6 +5,17 @@ import dyaml;
 import std;
 import url;
 
+auto executeCommand(string[] command, string errorMessage, Node settings)
+{
+    if (settings["verbose"].as!bool)
+    {
+        stderr.writeln("Running ", command);
+    }
+    auto result = command.execute;
+    (result.status == 0).enforce(errorMessage);
+    return result;
+}
+
 int editData(string home, EncryptDecrypt encdec, Node settings)
 {
     import dyaml;
@@ -14,7 +25,7 @@ int editData(string home, EncryptDecrypt encdec, Node settings)
 
     auto accountsBase = home ~ "/.sesame-accounts.txt";
 
-    encdec.decryptToFile(home, settings, accountsBase, filename);
+    encdec.decryptToFile(home, accountsBase, filename, settings);
     scope (exit)
     {
         filename.remove;
@@ -23,7 +34,7 @@ int editData(string home, EncryptDecrypt encdec, Node settings)
     auto exitCode = [editor, filename].spawnProcess.wait;
     (exitCode == 0).enforce("Cannot spawn '%s'".format(editor));
 
-    encdec.encrypt(home, settings, filename, accountsBase);
+    encdec.encrypt(home, filename, accountsBase, settings);
 
     return 0;
 }
@@ -41,9 +52,9 @@ class EncryptDecrypt
         this.extension = extension;
     }
 
-    abstract void decryptToFile(string home, Node settings, string accountsBase, string outputFile);
+    abstract void decryptToFile(string home, string accountsBase, string outputFile, Node settings);
     abstract string decryptToString(string home, string accountsBase, Node settings);
-    abstract void encrypt(string home, Node settings, string input, string accountsBase);
+    abstract void encrypt(string home, string input, string accountsBase, Node settings);
 }
 
 class GPGEncryptDecrypt : EncryptDecrypt
@@ -53,50 +64,47 @@ class GPGEncryptDecrypt : EncryptDecrypt
         super("gpg");
     }
 
-    override void decryptToFile(string home, Node settings, string accountsBase, string outputFile)
+    override void decryptToFile(string home, string accountsBase, string outputFile, Node settings)
     {
         auto file = accountsFile(accountsBase);
-        //dfmt off
-        auto result = [
-            "gpg",
-            "--decrypt",
-            "--quiet",
-            "--output", outputFile,
-            file,
-        ].execute;
+        // dfmt off
+        [
+          "gpg",
+          "--decrypt",
+          "--quiet",
+          "--output",
+          outputFile,
+          file,
+        ].executeCommand("Cannot decrypt '%s'".format(file), settings);
         // dfmt on
-        (result.status == 0).enforce("Cannot decrypt '%s'".format(file));
     }
 
     override string decryptToString(string home, string accountsBase, Node settings)
     {
         auto file = accountsFile(accountsBase);
         // dfmt off
-        auto result = [
+        return [
           "gpg",
           "--decrypt",
           "--quiet",
           file
-        ].execute;
+        ].executeCommand("Cannot decrypt '%s'".format(file), settings).output;
         // dfmt on
-        (result.status == 0).enforce("Cannot decrypt '%s'".format(file));
-        return result.output;
     }
 
-    override void encrypt(string home, Node settings, string input, string accountsBase)
+    override void encrypt(string home, string input, string accountsBase, Node settings)
     {
         auto file = accountsFile(accountsBase);
         // dfmt off
-        auto result = [
+        [
             "gpg",
             "--encrypt",
             "--recipient", settings["gpg-account"].as!string,
             "--quiet",
             "--output", file,
             input
-        ].execute;
+        ].executeCommand("Cannot encrypt '%s'".format(file), settings);
         // dfmt on
-        (result.status == 0).enforce("Cannot encrypt '%s'".format(file));
     }
 }
 
@@ -107,49 +115,45 @@ class AgeEncryptDecrypt : EncryptDecrypt
         super("age");
     }
 
-    override void decryptToFile(string home, Node settings, string accountsBase, string outputFile)
+    override void decryptToFile(string home, string accountsBase, string outputFile, Node settings)
     {
         auto file = accountsFile(accountsBase);
         // dfmt off
-        auto result = [
-            "age",
-            "--decrypt",
-            "--identity",  home ~ "/.age/" ~ settings["age-key"].as!string,
-            "--output", outputFile,
-            file
-        ].execute;
+        [
+          "age",
+          "--decrypt",
+          "--identity",  home ~ "/.age/" ~ settings["age-key"].as!string,
+          "--output", outputFile,
+          file
+        ].executeCommand("Cannot decrypt '%s'".format(file), settings);
         // dfmt on
-        (result.status == 0).enforce("Cannot decrypt '%s'".format(file));
     }
 
     override string decryptToString(string home, string accountsBase, Node settings)
     {
         auto file = accountsFile(accountsBase);
         // dfmt off
-        auto result = [
+        return [
             "age",
             "--decrypt",
             "--identity", home ~ "/.age/" ~ settings["age-key"].as!string,
             file,
-        ].execute;
+        ].executeCommand("Cannot decrypt '%s'".format(file), settings).output;
         // dfmt on
-        (result.status == 0).enforce("Cannot decrypt '%s'".format(file));
-        return result.output;
     }
 
-    override void encrypt(string home, Node settings, string input, string accountsBase)
+    override void encrypt(string home, string input, string accountsBase, Node settings)
     {
         auto file = accountsFile(accountsBase);
         // dfmt off
-        auto result = [
+        [
             "age",
             "--encrypt",
             "--identity", home ~ "/.age/" ~ settings["age-key"].as!string,
             "--output", file,
             input,
-        ].execute;
+        ].executeCommand("Cannot encrypt '%s'".format(file), settings);
         // dfmt on
-        (result.status == 0).enforce("Cannot encrypt '%s'".format(file));
     }
 }
 
@@ -201,6 +205,8 @@ int main(string[] args)
                          "encryption|c", "Encryption", &encryption,
                          "asciiTable|t", "Render as table", &asciiTable,
                          "edit|e", "Edit data", &edit);
+    settings["verbose"] = verbose;
+
     // dfmt on
     if (result.helpWanted)
     {
@@ -208,7 +214,6 @@ int main(string[] args)
         return 0;
     }
 
-    writeln(encryption);
     auto encdec = encryption.toObject;
 
     if (edit)
