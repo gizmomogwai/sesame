@@ -1,25 +1,24 @@
 name "sesam"
 description "A totd store"
 authors "Christian Koestlin"
-copyright "Copyright © 2019, Christian Koestlin"
+copyright "Copyright (c) 2019, Christian Koestlin"
 license "MIT"
 dependency "urld" version="~>2.1.1"
-dependency "base32" version="~>0.1.0"
+dependency "base32" version="~master"
 
 configuration "sesam" {
-  dependency "dyaml" version="~>0.8.1"
-  dependency "colored" version="~>0.0.22"
-  dependency "asciitable" version="~>0.0.11"
+  dependency "dyaml" version="~>0.8.6"
+  dependency "colored" version="~>0.0.27"
+  dependency "asciitable" version="~>0.0.14"
 
   targetType "executable"
   targetName "sesam"
   targetPath "out/exe"
-  mainSourceFile "source/app.d"
 }
 
 configuration "library" {
   targetType "library"
   targetPath "out/lib"
+
   excludedSourceFiles "source/app.d"
 }
-
