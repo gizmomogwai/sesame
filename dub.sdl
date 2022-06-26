@@ -14,6 +14,10 @@ configuration "sesam" {
   targetType "executable"
   targetName "sesam"
   targetPath "out/exe"
+
+  preGenerateCommands "$DUB run packageinfo"
+  sourcePaths "source" "out/generated/packageinfo"
+  importPaths "source" "out/generated/packageinfo"
 }
 
 configuration "library" {
