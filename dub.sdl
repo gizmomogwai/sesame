@@ -4,7 +4,7 @@ authors "Christian Koestlin"
 copyright "Copyright (c) 2019, Christian Koestlin"
 license "MIT"
 dependency "urld" version="~>2.1.1"
-dependency "base32" version="~master"
+dependency "base32" version="~>0.2.0"
 
 configuration "sesam" {
   dependency "dyaml" version="~>0.8.6"
