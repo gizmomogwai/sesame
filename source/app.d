@@ -217,7 +217,7 @@ int main(string[] args)
 
         // dfmt off
         auto table = packageinfo
-            .getPackages
+            .packages
             .sort!("a.name < b.name")
             .fold!((table, p) =>
                 table
