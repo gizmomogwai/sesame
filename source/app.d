@@ -1,9 +1,21 @@
 import otpauth;
-
+import argparse : CLI, Command, NamedArgument, ArgumentGroup, ansiStylingArgument, SubCommands, Default, Config;
 import colored;
 import dyaml;
-import std;
 import url;
+import packageinfo;
+import asciitable : AsciiTable;
+import std.algorithm : sort, fold, filter, startsWith, map;
+import std.sumtype : SumType, match;
+import std.conv : to;
+import std.stdio : stderr, writeln;
+import std.process : execute, environment, spawnProcess, wait;
+import std.exception : enforce;
+import std.file : remove;
+import std.format : format;
+import std.string : split, replace;
+import std.functional : not;
+import std.datetime : Clock;
 
 auto executeCommand(string[] command, string errorMessage, Node settings)
 {
@@ -16,16 +28,13 @@ auto executeCommand(string[] command, string errorMessage, Node settings)
     return result;
 }
 
-int editData(string home, EncryptDecrypt encdec, Node settings)
+int editData(string accountsBase, EncryptDecrypt encdec, Node settings)
 {
-    import dyaml;
+    const editor = environment["EDITOR"];
+    const home = environment["HOME"];
+    const filename = "/tmp/sesame";
 
-    auto editor = environment["EDITOR"];
-    auto filename = "/tmp/sesame";
-
-    auto accountsBase = home ~ "/.sesame-accounts.txt";
-
-    encdec.decryptToFile(home, accountsBase, filename, settings);
+    encdec.decryptToFile(accountsBase, filename, settings);
     scope (exit)
     {
         filename.remove;
@@ -34,27 +43,27 @@ int editData(string home, EncryptDecrypt encdec, Node settings)
     auto exitCode = [editor, filename].spawnProcess.wait;
     (exitCode == 0).enforce("Cannot spawn '%s'".format(editor));
 
-    encdec.encrypt(home, filename, accountsBase, settings);
+    encdec.encrypt(filename, accountsBase, settings);
 
     return 0;
 }
 
+string accountsFile(string accountsBase, string extension)
+{
+    return accountsBase ~ "." ~ extension;
+}
+
 class EncryptDecrypt
 {
-    string extension;
-    protected string accountsFile(string accountsBase)
-    {
-        return accountsBase ~ "." ~ extension;
-    }
-
+    protected string extension;
     protected this(string extension)
     {
         this.extension = extension;
     }
 
-    abstract void decryptToFile(string home, string accountsBase, string outputFile, Node settings);
-    abstract string decryptToString(string home, string accountsBase, Node settings);
-    abstract void encrypt(string home, string input, string accountsBase, Node settings);
+    abstract void decryptToFile(string accountsBase, string outputFile, Node settings);
+    abstract string decryptToString(string accountsBase, Node settings);
+    abstract void encrypt(string input, string accountsBase, Node settings);
 }
 
 class GPGEncryptDecrypt : EncryptDecrypt
@@ -64,9 +73,9 @@ class GPGEncryptDecrypt : EncryptDecrypt
         super("gpg");
     }
 
-    override void decryptToFile(string home, string accountsBase, string outputFile, Node settings)
+    override void decryptToFile(string accountsBase, string outputFile, Node settings)
     {
-        auto file = accountsFile(accountsBase);
+        auto file = accountsBase.accountsFile(extension);
         // dfmt off
         [
           "gpg",
@@ -79,9 +88,9 @@ class GPGEncryptDecrypt : EncryptDecrypt
         // dfmt on
     }
 
-    override string decryptToString(string home, string accountsBase, Node settings)
+    override string decryptToString(string accountsBase, Node settings)
     {
-        auto file = accountsFile(accountsBase);
+        auto file = accountsBase.accountsFile(extension);
         // dfmt off
         return [
           "gpg",
@@ -92,9 +101,9 @@ class GPGEncryptDecrypt : EncryptDecrypt
         // dfmt on
     }
 
-    override void encrypt(string home, string input, string accountsBase, Node settings)
+    override void encrypt(string input, string accountsBase, Node settings)
     {
-        auto file = accountsFile(accountsBase);
+        auto file = accountsBase.accountsFile(extension);
         // dfmt off
         [
             "gpg",
@@ -115,41 +124,46 @@ class AgeEncryptDecrypt : EncryptDecrypt
         super("age");
     }
 
-    override void decryptToFile(string home, string accountsBase, string outputFile, Node settings)
+    string id(Node settings)
     {
-        auto file = accountsFile(accountsBase);
+        return environment["HOME"] ~ "/.config/age/" ~ settings["age-key"].as!string;
+    }
+
+    override void decryptToFile(string accountsBase, string outputFile, Node settings)
+    {
+        auto file = accountsBase.accountsFile(extension);
         // dfmt off
         [
           "age",
           "--decrypt",
-          "--identity",  home ~ "/.age/" ~ settings["age-key"].as!string,
+          "--identity",  id(settings),
           "--output", outputFile,
           file
         ].executeCommand("Cannot decrypt '%s'".format(file), settings);
         // dfmt on
     }
 
-    override string decryptToString(string home, string accountsBase, Node settings)
+    override string decryptToString(string accountsBase, Node settings)
     {
-        auto file = accountsFile(accountsBase);
+        auto file = accountsBase.accountsFile(extension);
         // dfmt off
         return [
             "age",
             "--decrypt",
-            "--identity", home ~ "/.age/" ~ settings["age-key"].as!string,
+            "--identity", id(settings),
             file,
         ].executeCommand("Cannot decrypt '%s'".format(file), settings).output;
         // dfmt on
     }
 
-    override void encrypt(string home, string input, string accountsBase, Node settings)
+    override void encrypt(string input, string accountsBase, Node settings)
     {
-        auto file = accountsFile(accountsBase);
+        auto file = accountsBase.accountsFile(extension);
         // dfmt off
         [
             "age",
             "--encrypt",
-            "--identity", home ~ "/.age/" ~ settings["age-key"].as!string,
+            "--identity", id(settings),
             "--output", file,
             input,
         ].executeCommand("Cannot encrypt '%s'".format(file), settings);
@@ -189,70 +203,20 @@ auto getWithDefault(Node settings, string key, string defaultValue)
     }
 }
 
-int main(string[] args)
+auto calcOtps(EncryptDecrypt encdec, string accountsBase, Node settings, long now)
 {
-    bool verbose = false;
-    bool asciiTable = false;
-    bool edit = false;
-    auto home = environment["HOME"];
-    auto settingsFile = home ~ "/.config/.sesame.yaml";
-    auto settings = Loader.fromFile(settingsFile).load();
-    Encryption encryption = settings.getWithDefault("encryption", "GPG").to!Encryption;
-
-    // dfmt off
-    auto result = getopt(args,
-                         "verbose|v", "Verbose output", &verbose,
-                         "encryption|c", "Encryption", &encryption,
-                         "asciiTable|t", "Render as table", &asciiTable,
-                         "edit|e", "Edit data", &edit);
-    settings["verbose"] = verbose;
-
-    // dfmt on
-    if (result.helpWanted)
-    {
-        defaultGetoptPrinter("sesam", result.options);
-        import asciitable;
-        import packageinfo;
-        import colored;
-
-        // dfmt off
-        auto table = packageinfo
-            .packages
-            .sort!("a.name < b.name")
-            .fold!((table, p) =>
-                table
-                    .row
-                        .add(p.name.white)
-                        .add(p.semVer.lightGray)
-                        .add(p.license.lightGray).table)
-                   (new AsciiTable(3)
-                       .header
-                           .add("Package".bold)
-                           .add("Version".bold)
-                           .add("License".bold).table);
-        // dfmt on
-        stderr.writeln("Packageinfo:\n", table.format.prefix("    ")
-                       .headerSeparator(true).columnSeparator(true).to!string);
-
-        return 0;
-    }
-
-    auto encdec = encryption.toObject;
-
-    if (edit)
-    {
-        return editData(home, encdec, settings);
-    }
-    auto accountsBase = home ~ "/.sesame-accounts.txt";
-
-    auto lines = encdec.decryptToString(home, accountsBase, settings);
-
-    auto now = Clock.currTime().toUnixTime;
-
-    auto otps = lines.split
+    auto lines = encdec.decryptToString(accountsBase, settings);
+    return lines
+        .split
         .filter!(not!(line => line.startsWith("#")))
         .map!(line => new OTPAuth(line.parseURL));
-    if (asciiTable)
+}
+
+void list(string accountsBase, Node settings, EncryptDecrypt encdec, List l)
+{
+    auto now = Clock.currTime().toUnixTime;
+    auto otps = encdec.calcOtps(accountsBase, settings, now);
+    if (l.table)
     {
         import asciitable;
 
@@ -292,6 +256,104 @@ int main(string[] args)
             // dfmt on
         }
     }
+}
 
+@(Command("list", "l"))
+struct List
+{
+    @(NamedArgument("asciiTable", "table", "t").Description("Render as ascii table."))
+    bool table = false;
+}
+
+@(Command("edit", "e"))
+struct Edit
+{
+}
+
+@(Command("copy", "c"))
+struct Copy
+{
+    @(NamedArgument("asciiTable", "table", "t").Description("Render as ascii table."))
+    bool table;
+}
+
+auto color(T)(string s, T color)
+{
+    return Arguments.withColors == Config.StylingMode.on ? color(s).to!string : s;
+}
+
+@(Command("")
+  .Epilog(() => "PackageInfo:\n" ~ packages
+                        .sort!((a, b) => a.name < b.name)
+                        .fold!((table, p) =>
+                               table
+                               .row
+                                   .add(p.name.color(&white))
+                                   .add(p.semVer.color(&lightGray))
+                                   .add(p.license.color(&lightGray)).table)
+                            (new AsciiTable(3)
+                                .header
+                                    .add("Package".color(&bold))
+                                    .add("Version".color(&bold))
+                                    .add("License".color(&bold)).table)
+                        .format
+                            .prefix("    ")
+                            .headerSeparator(true)
+                            .columnSeparator(true)
+     .to!string))
+
+struct Arguments
+{
+    @ArgumentGroup("Common arguments")
+    {
+        @(NamedArgument("verbose", "v").Description("Verbose output."))
+        bool verbose = false;
+
+        @(NamedArgument("settings", "s").Description("Settings to use."))
+        string settingsFileName = "$HOME/.config/sesame/settings.yaml";
+
+        @(NamedArgument("accounts", "a").Description("Accounts file."))
+        string accounts = "$HOME/.config/sesame/accounts.txt";
+
+        @(NamedArgument("colors", "c").Description("Use ansi colors."))
+        static auto withColors = ansiStylingArgument;
+    }
+    @SubCommands SumType!(Default!List, Edit, Copy) subcommands;
+}
+
+int _main(Arguments arguments)
+{
+    const home = environment["HOME"];
+    auto settingsFile = arguments
+        .settingsFileName
+        .replace("$HOME", home);
+    auto settings = Loader.fromFile(settingsFile).load();
+    auto encdec = settings
+        .getWithDefault("encryption", "GPG")
+        .to!Encryption.toObject;
+    auto accountsBase = arguments
+        .accounts
+        .replace("$HOME", home);
+    settings["verbose"] = arguments.verbose;
+
+    // dfmt off
+    arguments.subcommands.match!(
+        (List l)
+        {
+            accountsBase.list(settings, encdec, l);
+        },
+        (Edit e)
+        {
+            accountsBase.editData(encdec, settings);
+        },
+        (Copy c)
+        {
+            
+        },
+    );
     return 0;
 }
+
+mixin CLI!(Arguments).main!((arguments) {
+    _main(arguments);
+});

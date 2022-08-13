@@ -1,18 +1,19 @@
-name "sesam"
-description "A totd store"
+name "sesame"
+description "A totd store."
 authors "Christian Koestlin"
 copyright "Copyright (c) 2019, Christian Koestlin"
 license "MIT"
 dependency "urld" version="~>2.1.1"
 dependency "base32" version="~>0.2.0"
 
-configuration "sesam" {
+configuration "sesame" {
   dependency "dyaml" version="~>0.9.0"
   dependency "colored" version="~>0.0.27"
   dependency "asciitable" version="~>0.0.14"
+  dependency "argparse" version="*"
 
   targetType "executable"
-  targetName "sesam"
+  targetName "sesame"
   targetPath "out/exe"
 
   preGenerateCommands "$DUB run packageinfo"
