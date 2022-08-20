@@ -1,21 +1,31 @@
 import otpauth;
-import argparse : CLI, Command, NamedArgument, ArgumentGroup, ansiStylingArgument, SubCommands, Default, Config;
+import argparse :
+    CLI,
+    Command,
+    NamedArgument,
+    ArgumentGroup,
+    ansiStylingArgument,
+    SubCommands,
+    Default,
+    Config;
 import colored;
 import dyaml;
 import url;
 import packageinfo;
 import asciitable : AsciiTable;
 import std.algorithm : sort, fold, filter, startsWith, map;
+import std.array : array;
 import std.sumtype : SumType, match;
 import std.conv : to;
 import std.stdio : stderr, writeln;
-import std.process : execute, environment, spawnProcess, wait;
+import std.process : execute, executeShell, environment, spawnProcess, wait, escapeShellCommand;
 import std.exception : enforce;
 import std.file : remove;
 import std.format : format;
 import std.string : split, replace;
 import std.functional : not;
 import std.datetime : Clock;
+import fuzzed : fuzzed;
 
 auto executeCommand(string[] command, string errorMessage, Node settings)
 {
@@ -258,23 +268,21 @@ void list(string accountsBase, Node settings, EncryptDecrypt encdec, List l)
     }
 }
 
-@(Command("list", "l"))
+@Command("list", "l")
 struct List
 {
-    @(NamedArgument("asciiTable", "table", "t").Description("Render as ascii table."))
+    @(NamedArgument("table").Description("Render as ascii table."))
     bool table = false;
 }
 
-@(Command("edit", "e"))
+@Command("edit", "e")
 struct Edit
 {
 }
 
-@(Command("copy", "c"))
+@Command("copy", "c")
 struct Copy
 {
-    @(NamedArgument("asciiTable", "table", "t").Description("Render as ascii table."))
-    bool table;
 }
 
 auto color(T)(string s, T color)
@@ -315,10 +323,25 @@ struct Arguments
         @(NamedArgument("accounts", "a").Description("Accounts file."))
         string accounts = "$HOME/.config/sesame/accounts.txt";
 
-        @(NamedArgument("colors", "c").Description("Use ansi colors."))
+        @(NamedArgument("withColors", "c").Description("Use ansi colors."))
         static auto withColors = ansiStylingArgument;
     }
     @SubCommands SumType!(Default!List, Edit, Copy) subcommands;
+}
+
+string copy2ClipboardCommand()
+{
+    version (OSX)
+    {
+        return "pbcopy";
+    }
+
+    version (linux)
+    {
+        return "xsel --clipboard --input";
+    }
+
+    assert(false);
 }
 
 int _main(Arguments arguments)
@@ -348,7 +371,19 @@ int _main(Arguments arguments)
         },
         (Copy c)
         {
-            
+            auto now = Clock.currTime().toUnixTime;
+            auto otps = encdec
+                .calcOtps(accountsBase, settings, now).array;
+            auto strings = otps.map!(otp => "%s/%s: %s".format(otp.issuer.green, otp.account, otp.totp(now))).array;
+            auto selection = fuzzed(strings);
+            if (selection !is null) {
+                auto code = otps[selection.index].totp(now);
+                auto result = "bash -c 'echo -n %s | %s'".format(code, copy2ClipboardCommand).executeShell;
+                if (result.status == 0)
+                {
+                    "Copied otp to clipboard".writeln;
+                }
+            }
         },
     );
     return 0;

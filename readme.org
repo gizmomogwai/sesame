@@ -1,10 +1,10 @@
 * Store your [[https://en.wikipedia.org/wiki/Time-based_One-Time_Password][TOTP]] [[https://github.com/FiloSottile/age][AGE]] or [[https://gnupg.org/][GPG]] encrypted
 
 ** Configuration
-*** ~/.config/.sesame.yaml
+*** ~/.config/sesame/settings.yaml
 - =encryption=: AGE | GPG
 - =gpg-account=: email address to encrypt to
-- =age-key=: age key to use (symetrical, must be stored in ~/.age/)
+- =age-key=: age key to use (symetrical, must be stored in ~/.config/age
 
-*** ~/.sesame-accounts.txt.[gpg|age]
-contains your gpg data. run =sesam -e= to edit it
+*** ~/.config/sesame/accounts.txt.[gpg|age]
+contains your otp data either gpg or age encrypted. run =sesam -e= to edit it.

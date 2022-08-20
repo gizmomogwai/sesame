@@ -7,8 +7,10 @@
 		"color": "0.0.9",
 		"colored": "0.0.27",
 		"dyaml": "0.9.0",
+		"fuzzed": "0.0.1+commit.32.g53c3152",
 		"tinyendian": "0.2.0",
-		"unit-threaded": "2.0.5",
+		"tui": "~main",
+		"unit-threaded": "2.0.4",
 		"urld": "2.1.1"
 	}
 }

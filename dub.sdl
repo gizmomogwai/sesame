@@ -11,10 +11,11 @@ configuration "sesame" {
   dependency "colored" version="~>0.0.27"
   dependency "asciitable" version="~>0.0.14"
   dependency "argparse" version="*"
+  dependency "fuzzed" version="*"
 
   targetType "executable"
   targetName "sesame"
-  targetPath "out/exe"
+  targetPath "out/main"
 
   preGenerateCommands "$DUB run packageinfo"
   sourcePaths "source" "out/generated/packageinfo"
