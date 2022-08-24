@@ -8,9 +8,9 @@ dependency "base32" version="~>0.2.0"
 
 configuration "sesame" {
   dependency "dyaml" version="~>0.9.1"
-  dependency "colored" version="~>0.0.27"
+  dependency "colored" version="~>0.0.28"
   dependency "asciitable" version="~>0.0.14"
-  dependency "argparse" version="*"
+  dependency "argparse" version="~>1.1.0"
   dependency "fuzzed" version="*"
 
   targetType "executable"

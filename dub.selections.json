@@ -1,11 +1,11 @@
 {
 	"fileVersion": 1,
 	"versions": {
-		"argparse": "1.0.0+commit.16.g66b694a",
+		"argparse": "1.1.0",
 		"asciitable": "0.0.14",
 		"base32": "0.2.0",
 		"color": "0.0.9",
-		"colored": "0.0.27",
+		"colored": "0.0.28",
 		"dyaml": "0.9.1",
 		"fuzzed": "0.0.1+commit.32.g53c3152",
 		"tinyendian": "0.2.0",
