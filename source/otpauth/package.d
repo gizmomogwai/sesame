@@ -2,8 +2,13 @@ module otpauth;
 
 import std.digest.hmac;
 import std.digest.sha;
-import std;
-
+import std.bitmanip : nativeToBigEndian, read, Endian;
+import std.array : split;
+import std.format : format;
+import std.math.exponential : pow;
+import std.regex : regex, replaceFirst;
+import std.uni : toUpper;
+import std.conv : to;
 import base32;
 import url;
 

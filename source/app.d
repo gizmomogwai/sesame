@@ -9,14 +9,17 @@ import argparse :
     Description,
     Epilog,
     NamedArgument,
-    SubCommands;
+    SubCommands,
+    PositionalArgument;
 import colored;
 import dyaml;
 import url;
 import packageinfo;
 import asciitable : AsciiTable;
-import std.algorithm : sort, fold, filter, startsWith, map;
+import std.uni : toLower;
+import std.algorithm : sort, fold, filter, startsWith, map, find;
 import std.array : array;
+import std.range : empty;
 import std.sumtype : SumType, match;
 import std.conv : to;
 import std.stdio : stderr, writeln;
@@ -215,19 +218,26 @@ auto getWithDefault(Node settings, string key, string defaultValue)
     }
 }
 
-auto calcOtps(EncryptDecrypt encdec, string accountsBase, Node settings, long now)
+auto calcOtps(EncryptDecrypt encdec, string accountsBase, Node settings, long now, string filter)
 {
     auto lines = encdec.decryptToString(accountsBase, settings);
     return lines
         .split
         .filter!(not!(line => line.startsWith("#")))
+        .filter!((line) {
+                if (filter is null)
+                {
+                    return true;
+                }
+                return !line.toLower.find(filter.toLower).empty;
+            })
         .map!(line => new OTPAuth(line.parseURL));
 }
 
-void list(string accountsBase, Node settings, EncryptDecrypt encdec, List l)
+void list(string accountsBase, Node settings, EncryptDecrypt encdec, List l, string filter)
 {
     auto now = Clock.currTime().toUnixTime;
-    auto otps = encdec.calcOtps(accountsBase, settings, now);
+    auto otps = encdec.calcOtps(accountsBase, settings, now, filter);
     if (l.table)
     {
         import asciitable;
@@ -273,7 +283,6 @@ void list(string accountsBase, Node settings, EncryptDecrypt encdec, List l)
 @Command("list", "l")
 struct List
 {
-    @(NamedArgument("table").Description("Render as ascii table."))
     bool table = false;
 }
 
@@ -327,6 +336,9 @@ struct Arguments
 
         @(NamedArgument("withColors", "c").Description("Use ansi colors."))
         static auto withColors = ansiStylingArgument;
+
+        @(NamedArgument("filter", "f")) // TODO make positional argument from that, so that one does not have to enter -f!!!
+        string filter;
     }
     @SubCommands SumType!(Default!List, Edit, Copy) subcommands;
 }
@@ -365,7 +377,7 @@ int _main(Arguments arguments)
     arguments.subcommands.match!(
         (List l)
         {
-            accountsBase.list(settings, encdec, l);
+            accountsBase.list(settings, encdec, l, arguments.filter);
         },
         (Edit e)
         {
@@ -375,16 +387,25 @@ int _main(Arguments arguments)
         {
             auto now = Clock.currTime().toUnixTime;
             auto otps = encdec
-                .calcOtps(accountsBase, settings, now).array;
-            auto strings = otps.map!(otp => "%s/%s: %s".format(otp.issuer.green, otp.account, otp.totp(now))).array;
-            auto selection = fuzzed(strings);
-            if (selection !is null) {
-                auto code = otps[selection.index].totp(now);
-                auto result = "bash -c 'echo -n %s | %s'".format(code, copy2ClipboardCommand).executeShell;
-                if (result.status == 0)
+                .calcOtps(accountsBase, settings, now, arguments.filter).array;
+            string code = null;
+            if (otps.length == 1)
+            {
+                code = otps[0].totp(now);
+            }
+            else
+            {
+                auto strings = otps.map!(otp => "%s/%s: %s".format(otp.issuer.green, otp.account, otp.totp(now))).array;
+                auto selection = fuzzed(strings);
+                if (selection !is null)
                 {
-                    "Copied otp to clipboard".writeln;
+                    code = otps[selection.index].totp(now);
                 }
+            }
+            auto result = "bash -c 'echo -n %s | %s'".format(code, copy2ClipboardCommand).executeShell;
+            if (result.status == 0)
+            {
+                "Copied otp to clipboard".writeln;
             }
         },
     );
