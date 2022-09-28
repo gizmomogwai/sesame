@@ -283,6 +283,10 @@ void list(string accountsBase, Node settings, EncryptDecrypt encdec, List l, str
 @Command("list", "l")
 struct List
 {
+    @PositionalArgument(0)
+    string filter = "";
+
+    @NamedArgument
     bool table = false;
 }
 
@@ -294,6 +298,8 @@ struct Edit
 @Command("copy", "c")
 struct Copy
 {
+    @PositionalArgument(0)
+    string filter = "";
 }
 
 auto color(T)(string s, T color)
@@ -334,13 +340,10 @@ struct Arguments
         @(NamedArgument("accounts", "a").Description("Accounts file."))
         string accounts = "$HOME/.config/sesame/accounts.txt";
 
-        @(NamedArgument("withColors", "c").Description("Use ansi colors."))
+        @(NamedArgument("withColors").Description("Use ansi colors."))
         static auto withColors = ansiStylingArgument;
-
-        @(NamedArgument("filter", "f")) // TODO make positional argument from that, so that one does not have to enter -f!!!
-        string filter;
     }
-    @SubCommands SumType!(Default!List, Edit, Copy) subcommands;
+    @SubCommands SumType!(List, Edit, Copy) subcommands;
 }
 
 string copy2ClipboardCommand()
@@ -358,6 +361,11 @@ string copy2ClipboardCommand()
     assert(false);
 }
 
+auto toEncryption(string s)
+{
+    return s.to!Encryption.toObject;
+}
+
 int _main(Arguments arguments)
 {
     const home = environment["HOME"];
@@ -367,7 +375,7 @@ int _main(Arguments arguments)
     auto settings = Loader.fromFile(settingsFile).load();
     auto encdec = settings
         .getWithDefault("encryption", "GPG")
-        .to!Encryption.toObject;
+        .toEncryption;
     auto accountsBase = arguments
         .accounts
         .replace("$HOME", home);
@@ -377,7 +385,7 @@ int _main(Arguments arguments)
     arguments.subcommands.match!(
         (List l)
         {
-            accountsBase.list(settings, encdec, l, arguments.filter);
+            accountsBase.list(settings, encdec, l, l.filter);
         },
         (Edit e)
         {
@@ -387,7 +395,7 @@ int _main(Arguments arguments)
         {
             auto now = Clock.currTime().toUnixTime;
             auto otps = encdec
-                .calcOtps(accountsBase, settings, now, arguments.filter).array;
+                .calcOtps(accountsBase, settings, now, c.filter).array;
             string code = null;
             if (otps.length == 1)
             {
