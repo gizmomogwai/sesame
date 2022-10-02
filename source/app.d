@@ -1,36 +1,25 @@
-import otpauth;
-import argparse :
-    ansiStylingArgument,
-    ArgumentGroup,
-    CLI,
-    Command,
-    Config,
-    Default,
-    Description,
-    Epilog,
-    NamedArgument,
-    SubCommands,
-    PositionalArgument;
-import colored;
-import dyaml;
-import url;
-import packageinfo;
+import argparse : ansiStylingArgument, ArgumentGroup, CLI, Command, Config, Default, Description, Epilog, NamedArgument, PositionalArgument, SubCommands;
 import asciitable : AsciiTable;
-import std.uni : toLower;
-import std.algorithm : sort, fold, filter, startsWith, map, find;
+import colored : bold, green, lightGray, white;
+import dyaml : Loader, Node;
+import fuzzed : fuzzed;
+import otpauth : OTPAuth;
+import packageinfo : packages;
+import std.algorithm : filter, find, fold, map, sort, startsWith;
 import std.array : array;
-import std.range : empty;
-import std.sumtype : SumType, match;
 import std.conv : to;
-import std.stdio : stderr, writeln;
-import std.process : execute, executeShell, environment, spawnProcess, wait, escapeShellCommand;
+import std.datetime : Clock;
 import std.exception : enforce;
 import std.file : remove;
 import std.format : format;
-import std.string : split, replace;
 import std.functional : not;
-import std.datetime : Clock;
-import fuzzed : fuzzed;
+import std.process : environment, escapeShellCommand, execute, executeShell, spawnProcess, wait;
+import std.range : empty;
+import std.stdio : stderr, writeln;
+import std.string : replace, split;
+import std.sumtype : match, SumType;
+import std.uni : toLower;
+import url : parseURL;
 
 auto executeCommand(string[] command, string errorMessage, Node settings)
 {
