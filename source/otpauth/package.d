@@ -50,16 +50,21 @@ class OTPAuth
         this.issuer = url.queryParams["issuer"].front;
     }
 
-    override string toString()
+    override void toString(Sink, Format)(Sink sink, Format format) const
     {
         // dfmt off
-        return "otpauth://totp/" ~ this.account
-            ~ "?secret=" ~ this.secret
-            ~ "&algorithm=" ~ algorithm
-            ~ "&period=" ~ period.to!string
-            ~ "&digits=" ~ digits.to!string
-            ~ "&issuer=" ~ issuer;
-        // dfmt on
+        sink("otpauth://totp/");
+        sink(this.account);
+        sink("?secret=");
+        sink(this.secret);
+        sink("&algorithm=");
+        sink(algorithm);
+        sink("&period=");
+        sink(period.to!string);
+        sink("&digits=");
+        sink(digits.to!string);
+        sink("&issuer=");
+        sink(issuer);
     }
 
     string totp(Digest)(Digest digest, long time)
