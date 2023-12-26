@@ -1,5 +1,6 @@
-import argparse : ansiStylingArgument, ArgumentGroup, CLI, Command, Config, Default, Description, Epilog, NamedArgument, PositionalArgument, SubCommands;
-import asciitable : AsciiTable;
+import argparse : ansiStylingArgument, ArgumentGroup, CLI, Command, Config, match,
+    Default, Description, Epilog, NamedArgument, PositionalArgument, SubCommand;
+import asciitable : AsciiTable, UnicodeParts;
 import colored : bold, green, lightGray, white;
 import dyaml : Loader, Node;
 import fuzzed : fuzzed;
@@ -17,7 +18,6 @@ import std.process : environment, escapeShellCommand, execute, executeShell, spa
 import std.range : empty;
 import std.stdio : stderr, writeln;
 import std.string : replace, split;
-import std.sumtype : match, SumType;
 import std.uni : toLower;
 import url : parseURL;
 
@@ -183,16 +183,13 @@ enum Encryption
 
 EncryptDecrypt toObject(Encryption e)
 {
-    switch (e) with (Encryption)
+    final switch (e) with (Encryption)
     {
     case GPG:
         return new GPGEncryptDecrypt();
     case AGE:
         return new AgeEncryptDecrypt();
-    default:
-        false.enforce("Unknown Encryption '%s'".format(e));
     }
-    assert(false);
 }
 
 auto getWithDefault(Node settings, string key, string defaultValue)
@@ -210,16 +207,15 @@ auto getWithDefault(Node settings, string key, string defaultValue)
 auto calcOtps(EncryptDecrypt encdec, string accountsBase, Node settings, long now, string filter)
 {
     auto lines = encdec.decryptToString(accountsBase, settings);
-    return lines
-        .split
+    return lines.split
         .filter!(not!(line => line.startsWith("#")))
         .filter!((line) {
-                if (filter is null)
-                {
-                    return true;
-                }
-                return !line.toLower.find(filter.toLower).empty;
-            })
+            if (filter is null)
+            {
+                return true;
+            }
+            return !line.toLower.find(filter.toLower).empty;
+        })
         .map!(line => new OTPAuth(line.parseURL));
 }
 
@@ -229,8 +225,6 @@ void list(string accountsBase, Node settings, EncryptDecrypt encdec, List l, str
     auto otps = encdec.calcOtps(accountsBase, settings, now, filter);
     if (l.table)
     {
-        import asciitable;
-
         //dfmt off
         auto table = new AsciiTable(5);
         table.header
@@ -238,10 +232,10 @@ void list(string accountsBase, Node settings, EncryptDecrypt encdec, List l, str
         foreach (otpauth; otps)
         {
             table.row()
-                .add(otpauth.issuer.green)
+                .add(otpauth.issuer.color(&green))
                 .add(otpauth.account)
                 .add(otpauth.totp(now - otpauth.period))
-                .add(otpauth.totp(now).green)
+                .add(otpauth.totp(now).color(&green))
                 .add(otpauth.totp(now + otpauth.period));
         }
         table
@@ -258,10 +252,10 @@ void list(string accountsBase, Node settings, EncryptDecrypt encdec, List l, str
         foreach (otpauth; otps)
         {
             // dfmt off
-            writeln(otpauth.issuer.green, "/",
+            writeln(otpauth.issuer.color(&green), "/",
                     otpauth.account, ": ",
                     otpauth.totp(now - otpauth.period), " ",
-                    otpauth.totp(now).green, " ",
+                    otpauth.totp(now).color(&green), " ",
                     otpauth.totp(now + otpauth.period)
             );
             // dfmt on
@@ -275,8 +269,7 @@ struct List
     @PositionalArgument(0)
     string filter = "";
 
-    @NamedArgument
-    bool table = false;
+    @NamedArgument bool table = false;
 }
 
 @Command("edit", "e")
@@ -293,28 +286,31 @@ struct Copy
 
 auto color(T)(string s, T color)
 {
-    return Arguments.withColors == Config.StylingMode.on ? color(s).to!string : s;
+    return Arguments.withColors ? color(s).to!string : s;
 }
 
-@(Command("")
-  .Epilog(() => "PackageInfo:\n" ~ packages
-                        .sort!((a, b) => a.name < b.name)
-                        .fold!((table, p) =>
-                               table
-                               .row
-                                   .add(p.name.color(&white))
-                                   .add(p.semVer.color(&lightGray))
-                                   .add(p.license.color(&lightGray)).table)
-                            (new AsciiTable(3)
-                                .header
-                                    .add("Package".color(&bold))
-                                    .add("Version".color(&bold))
-                                    .add("License".color(&bold)).table)
-                        .format
-                            .prefix("    ")
-                            .headerSeparator(true)
-                            .columnSeparator(true)
-     .to!string))
+// dfmt off
+@(Command("").Epilog(
+    () =>
+      "PackageInfo:\n" ~
+        packages
+          .sort!((a, b) => a.name < b.name)
+          .fold!(
+            (table, p) =>
+              table.row.add(p.name.color(&white))
+                       .add(p.semVer.color(&lightGray))
+                       .add(p.license.color(&lightGray)).table)
+            (new AsciiTable(3)
+              .header
+                .add("Package".color(&bold))
+                .add("Version".color(&bold))
+                .add("License".color(&bold)).table)
+          .format
+          .prefix("    ")
+          .headerSeparator(true)
+          .columnSeparator(true)
+          .to!string))
+// dfmt on
 
 struct Arguments
 {
@@ -332,7 +328,7 @@ struct Arguments
         @(NamedArgument("withColors").Description("Use ansi colors."))
         static auto withColors = ansiStylingArgument;
     }
-    @SubCommands SumType!(List, Edit, Copy) subcommands;
+    SubCommand!(Default!List, Edit, Copy) subcommands;
 }
 
 string copy2ClipboardCommand()
@@ -358,16 +354,10 @@ auto toEncryption(string s)
 int _main(Arguments arguments)
 {
     const home = environment["HOME"];
-    auto settingsFile = arguments
-        .settingsFileName
-        .replace("$HOME", home);
+    auto settingsFile = arguments.settingsFileName.replace("$HOME", home);
     auto settings = Loader.fromFile(settingsFile).load();
-    auto encdec = settings
-        .getWithDefault("encryption", "GPG")
-        .toEncryption;
-    auto accountsBase = arguments
-        .accounts
-        .replace("$HOME", home);
+    auto encdec = settings.getWithDefault("encryption", "GPG").toEncryption;
+    auto accountsBase = arguments.accounts.replace("$HOME", home);
     settings["verbose"] = arguments.verbose;
 
     // dfmt off
@@ -410,5 +400,5 @@ int _main(Arguments arguments)
 }
 
 mixin CLI!(Arguments).main!((arguments) {
-    _main(arguments);
+    return _main(arguments);
 });
