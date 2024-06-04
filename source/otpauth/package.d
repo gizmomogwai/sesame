@@ -29,6 +29,7 @@ class OTPAuth
     int period;
     int digits;
     string issuer;
+    string staticPrefix;
 
     this(URL url)
     {
@@ -48,6 +49,7 @@ class OTPAuth
         this.period = url.queryParams["period"].frontOrDefault("30").to!int;
         this.digits = url.queryParams["digits"].frontOrDefault("6").to!int;
         this.issuer = url.queryParams["issuer"].front;
+        this.staticPrefix = url.queryParams["staticPrefix"].frontOrDefault("");
     }
 
     override void toString(Sink, Format)(Sink sink, Format format) const
@@ -65,6 +67,8 @@ class OTPAuth
         sink(digits.to!string);
         sink("&issuer=");
         sink(issuer);
+        sink("&staticPrefix=");
+        sink(staticPrefix);
     }
 
     string totp(Digest)(Digest digest, long time)
@@ -82,7 +86,7 @@ class OTPAuth
         otp = otp & 0x7FFFFFFF;
         otp = otp % (pow(10, digits));
 
-        return format("%0" ~ digits.to!string ~ "d", otp);
+        return format("%s%0" ~ digits.to!string ~ "d",staticPrefix, otp);
     }
 
     string totp(long time)

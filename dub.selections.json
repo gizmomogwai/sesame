@@ -9,7 +9,7 @@
 		"fuzzed": "0.0.2+commit.2.gfec1e4e",
 		"tinyendian": "0.2.0",
 		"tui": "0.0.2",
-		"unit-threaded": "2.1.7",
+		"unit-threaded": "2.1.9",
 		"urld": "2.1.1"
 	}
 }
