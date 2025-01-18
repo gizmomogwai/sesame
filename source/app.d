@@ -389,10 +389,12 @@ int _main(Arguments arguments)
                     code = otps[selection.index].totp(now);
                 }
             }
-            auto result = "bash -c 'echo -n %s | %s'".format(code, copy2ClipboardCommand).executeShell;
-            if (result.status == 0)
-            {
-                "Copied otp to clipboard".writeln;
+            if (code !is null) {
+                auto result = "bash -c 'echo -n %s | %s'".format(code, copy2ClipboardCommand).executeShell;
+                if (result.status == 0)
+                {
+                    "Copied otp to clipboard".writeln;
+                }
             }
         },
     );

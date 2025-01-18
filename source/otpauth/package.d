@@ -52,7 +52,7 @@ class OTPAuth
         this.staticPrefix = url.queryParams["staticPrefix"].frontOrDefault("");
     }
 
-    override void toString(Sink, Format)(Sink sink, Format format) const
+    void toString(Sink, Format)(Sink sink, Format format) const
     {
         // dfmt off
         sink("otpauth://totp/");
