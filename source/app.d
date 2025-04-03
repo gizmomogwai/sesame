@@ -1,5 +1,5 @@
-import argparse : ansiStylingArgument, ArgumentGroup, CLI, Command, Config, match,
-    Default, Description, Epilog, NamedArgument, PositionalArgument, SubCommand;
+import argparse : ansiStylingArgument, ArgumentGroup, CLI, Command, Config,
+    Default, Description, Epilog, NamedArgument, PositionalArgument;
 import asciitable : AsciiTable, UnicodeParts;
 import colored : bold, green, lightGray, white;
 import dyaml : Loader, Node;
@@ -18,6 +18,7 @@ import std.process : environment, escapeShellCommand, execute, executeShell, spa
 import std.range : empty;
 import std.stdio : stderr, writeln;
 import std.string : replace, split;
+import std.sumtype : SumType, match;
 import std.uni : toLower;
 import url : parseURL;
 
@@ -328,7 +329,7 @@ struct Arguments
         @(NamedArgument("withColors").Description("Use ansi colors."))
         static auto withColors = ansiStylingArgument;
     }
-    SubCommand!(Default!List, Edit, Copy) subcommands;
+    SumType!(Default!List, Edit, Copy) subcommands;
 }
 
 string copy2ClipboardCommand()
@@ -362,7 +363,7 @@ int _main(Arguments arguments)
 
     // dfmt off
     arguments.subcommands.match!(
-        (List l)
+        (.List l)
         {
             accountsBase.list(settings, encdec, l, l.filter);
         },
