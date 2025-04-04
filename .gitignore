@@ -5,3 +5,4 @@ docs/
 *.exe
 *.lst
 out
+linux-out

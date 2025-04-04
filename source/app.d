@@ -68,6 +68,7 @@ class EncryptDecrypt
 
     abstract void decryptToFile(string accountsBase, string outputFile, Node settings);
     abstract string decryptToString(string accountsBase, Node settings);
+
     abstract void encrypt(string input, string accountsBase, Node settings);
 }
 
@@ -329,6 +330,7 @@ struct Arguments
         @(NamedArgument("withColors").Description("Use ansi colors."))
         static auto withColors = ansiStylingArgument;
     }
+    
     SumType!(Default!List, Edit, Copy) subcommands;
 }
 
@@ -360,7 +362,7 @@ int _main(Arguments arguments)
     auto encdec = settings.getWithDefault("encryption", "GPG").toEncryption;
     auto accountsBase = arguments.accounts.replace("$HOME", home);
     settings["verbose"] = arguments.verbose;
-
+    writeln(arguments);
     // dfmt off
     arguments.subcommands.match!(
         (.List l)
