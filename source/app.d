@@ -1,5 +1,8 @@
+import argparse.api.cli : CLI;
+
 import argparse : ansiStylingArgument, ArgumentGroup, CLI, Command, Config,
-    Default, Description, Epilog, NamedArgument, PositionalArgument;
+    Default, Description, Epilog, NamedArgument, SubCommand, match;
+import argparse.api.argument : PositionalArgument, Optional;
 import asciitable : AsciiTable, UnicodeParts;
 import colored : bold, green, lightGray, white;
 import dyaml : Loader, Node;
@@ -18,7 +21,6 @@ import std.process : environment, escapeShellCommand, execute, executeShell, spa
 import std.range : empty;
 import std.stdio : stderr, writeln;
 import std.string : replace, split;
-import std.sumtype : SumType, match;
 import std.uni : toLower;
 import url : parseURL;
 
@@ -265,13 +267,14 @@ void list(string accountsBase, Node settings, EncryptDecrypt encdec, List l, str
     }
 }
 
-@Command("list", "l")
+@(Command("list", "l").Description("List totps"))
 struct List
 {
-    @PositionalArgument(0)
-    string filter = "";
+    @(NamedArgument)
+    bool table = false;
 
-    @NamedArgument bool table = false;
+    @(PositionalArgument())
+    string filter = "";
 }
 
 @Command("edit", "e")
@@ -282,7 +285,7 @@ struct Edit
 @Command("copy", "c")
 struct Copy
 {
-    @PositionalArgument(0)
+    @(PositionalArgument(0).Optional())
     string filter = "";
 }
 
@@ -327,11 +330,11 @@ struct Arguments
         @(NamedArgument("accounts", "a").Description("Accounts file."))
         string accounts = "$HOME/.config/sesame/accounts.txt";
 
-        @(NamedArgument("withColors").Description("Use ansi colors."))
+        @(NamedArgument().Description("Use ansi colors."))
         static auto withColors = ansiStylingArgument;
     }
-    
-    SumType!(Default!List, Edit, Copy) subcommands;
+
+    SubCommand!(Default!List, Edit, Copy) subcommands;
 }
 
 string copy2ClipboardCommand()
@@ -356,17 +359,21 @@ auto toEncryption(string s)
 
 int _main(Arguments arguments)
 {
+    writeln("arguments: ", arguments);
     const home = environment["HOME"];
     auto settingsFile = arguments.settingsFileName.replace("$HOME", home);
     auto settings = Loader.fromFile(settingsFile).load();
     auto encdec = settings.getWithDefault("encryption", "GPG").toEncryption;
     auto accountsBase = arguments.accounts.replace("$HOME", home);
     settings["verbose"] = arguments.verbose;
-    writeln(arguments);
     // dfmt off
     arguments.subcommands.match!(
-        (.List l)
+        (List l)
         {
+            writeln("list");
+            writeln("settings ", settings);
+            writeln("l ", l);
+            writeln("filter ", l.filter);
             accountsBase.list(settings, encdec, l, l.filter);
         },
         (Edit e)
@@ -404,6 +411,4 @@ int _main(Arguments arguments)
     return 0;
 }
 
-mixin CLI!(Arguments).main!((arguments) {
-    return _main(arguments);
-});
+mixin CLI!(Arguments).main!((arguments) { return _main(arguments); });
