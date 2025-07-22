@@ -273,7 +273,7 @@ struct List
     @(NamedArgument)
     bool table = false;
 
-    @(PositionalArgument())
+    @(PositionalArgument().Optional())
     string filter = "";
 }
 
