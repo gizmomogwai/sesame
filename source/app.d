@@ -374,7 +374,6 @@ extern (C) void exit(int exit_val);
 
 extern (C) void handle(int sig)
 {
-    writeln("Control-C was pressed..aborting program....goodbye...");
     credentialsFileName.remove;
     exit(0);
 }
