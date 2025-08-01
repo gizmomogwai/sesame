@@ -2,7 +2,7 @@ import argparse.api.cli : CLI;
 
 import argparse : ansiStylingArgument, ArgumentGroup, CLI, Command, Config,
     Default, Description, Epilog, NamedArgument, SubCommand, match;
-import argparse.api.argument : PositionalArgument, Optional;
+import argparse.api.argument : PositionalArgument, Optional, Required;
 import asciitable : AsciiTable, UnicodeParts;
 import colored : bold, green, lightGray, white;
 import dyaml : Loader, Node;
@@ -19,7 +19,7 @@ import std.format : format;
 import std.functional : not;
 import std.process : environment, escapeShellCommand, execute, executeShell, spawnProcess, wait;
 import std.range : empty;
-import std.stdio : stderr, writeln;
+import std.stdio : stderr, writeln, File;
 import std.string : replace, split;
 import std.uni : toLower;
 import url : parseURL;
@@ -289,6 +289,17 @@ struct Copy
     string filter = "";
 }
 
+@Command("openvpn")
+struct OpenVPN
+{
+    @(NamedArgument.Required())
+    string user;
+    @(NamedArgument.Required())
+    string filter;
+    @(NamedArgument.Required())
+    string config;
+}
+
 auto color(T)(string s, T color)
 {
     return Arguments.withColors ? color(s).to!string : s;
@@ -315,7 +326,7 @@ auto color(T)(string s, T color)
           .headerSeparator(true)
           .columnSeparator(true)
           .to!string))
-// dfmt on
+ // dfmt on
 
 struct Arguments
 {
@@ -334,7 +345,7 @@ struct Arguments
         static auto withColors = ansiStylingArgument;
     }
 
-    SubCommand!(Default!List, Edit, Copy) subcommands;
+    SubCommand!(Default!List, Edit, Copy, OpenVPN) subcommands;
 }
 
 string copy2ClipboardCommand()
@@ -357,9 +368,19 @@ auto toEncryption(string s)
     return s.to!Encryption.toObject;
 }
 
+string credentialsFileName() => format!("%s/tmp/openvpn-credentials")(environment.get("HOME"));
+extern (C) void signal(int sig, void function(int));
+extern (C) void exit(int exit_val);
+
+extern (C) void handle(int sig)
+{
+    writeln("Control-C was pressed..aborting program....goodbye...");
+    credentialsFileName.remove;
+    exit(0);
+}
+
 int _main(Arguments arguments)
 {
-    writeln("arguments: ", arguments);
     const home = environment["HOME"];
     auto settingsFile = arguments.settingsFileName.replace("$HOME", home);
     auto settings = Loader.fromFile(settingsFile).load();
@@ -370,10 +391,6 @@ int _main(Arguments arguments)
     arguments.subcommands.match!(
         (List l)
         {
-            writeln("list");
-            writeln("settings ", settings);
-            writeln("l ", l);
-            writeln("filter ", l.filter);
             accountsBase.list(settings, encdec, l, l.filter);
         },
         (Edit e)
@@ -406,6 +423,28 @@ int _main(Arguments arguments)
                     "Copied otp to clipboard".writeln;
                 }
             }
+        },
+        (OpenVPN openVpn) {
+            auto now = Clock.currTime().toUnixTime;
+            auto otps = encdec
+                .calcOtps(accountsBase, settings, now, openVpn.filter).array;
+            string code = null;
+            if (otps.length == 1)
+            {
+                code = otps[0].totp(now);
+            } else {
+                throw new Exception("More than one totp config found for " ~ openVpn.filter);
+            }
+            {
+                auto credentialsFile = File(credentialsFileName, "w");
+                credentialsFile.writeln("christian.koestlin");
+                credentialsFile.writeln(code);
+            }
+            enum SIGINT = 2;
+            signal(SIGINT,&handle);
+
+            auto openVpnProcess = execute(["sudo", "openvpn", "--config", openVpn.config, "--auth-user-pass", credentialsFileName]);
+            if (openVpnProcess.status != 0) writeln("OpenVPN failed:\n", openVpnProcess.output);
         },
     );
     return 0;
