@@ -9,7 +9,7 @@ dependency "base32" version="~>0.2.0"
 configuration "sesame" {
   dependency "colored" version="~>0.0.33"
   dependency "asciitable" version="~>0.0.17"
-  dependency "argparse" repository="git+https://github.com/andrey-zherikov/argparse" version="579aaa82208c4a96a83461818e5aa3a02f7a4eda"
+  dependency "argparse" version="~>2.0.2"
   dependency "fuzzed" version="*"
   dependency "dyaml" version="~>0.10.0"
 

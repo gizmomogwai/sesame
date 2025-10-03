@@ -1,7 +1,7 @@
 import argparse.api.cli : CLI;
 
 import argparse : ansiStylingArgument, ArgumentGroup, CLI, Command, Config,
-    Default, Description, Epilog, NamedArgument, SubCommand, match;
+    Default, Description, Epilog, NamedArgument, SubCommand, matchCmd;
 import argparse.api.argument : PositionalArgument, Optional, Required;
 import asciitable : AsciiTable, UnicodeParts;
 import colored : bold, green, lightGray, white;
@@ -387,7 +387,7 @@ int _main(Arguments arguments)
     auto accountsBase = arguments.accounts.replace("$HOME", home);
     settings["verbose"] = arguments.verbose;
     // dfmt off
-    arguments.subcommands.match!(
+    arguments.subcommands.matchCmd!(
         (List l)
         {
             accountsBase.list(settings, encdec, l, l.filter);
