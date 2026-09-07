@@ -27,7 +27,7 @@ auto executeCommand(string[] command, string errorMessage, Node settings)
 {
     if (settings["verbose"].as!bool)
     {
-        stderr.writeln("Running ", command);
+        stderr.writeln(i"Running $(command)".text);
     }
     auto result = command.execute;
     (result.status == 0).enforce(errorMessage);
@@ -382,7 +382,7 @@ int _main(Arguments arguments)
     const home = environment["HOME"];
     auto settingsFile = arguments.settingsFileName.replace("$HOME", home);
     auto settings = Loader.fromFile(settingsFile).load();
-    auto encdec = settings.getWithDefault("encryption", "GPG").toEncryption;
+    auto encdec = settings.getWithDefault("encryption", "AGE").toEncryption;
     auto accountsBase = arguments.accounts.replace("$HOME", home);
     settings["verbose"] = arguments.verbose;
     // dfmt off

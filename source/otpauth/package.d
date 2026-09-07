@@ -2,7 +2,7 @@ module otpauth;
 
 import std.array : split;
 import std.bitmanip : Endian, nativeToBigEndian, read;
-import std.conv : to;
+import std.conv : text, to;
 import std.digest.hmac;
 import std.digest.sha;
 import std.format : format;
@@ -35,12 +35,12 @@ class OTPAuth
     {
         if (url.scheme != "otpauth")
         {
-            throw new Exception("Cannot work with " ~ url.scheme);
+            throw new Exception(i"Cannot work with '$(url.scheme)".text);
         }
 
         if (url.host != "totp")
         {
-            throw new Exception("Cannot work with " ~ url.host);
+            throw new Exception(i"Cannot work with '$(url.host)".text);
         }
 
         this.account = url.path.split(":")[$ - 1].replaceFirst(regex("^/"), "");
@@ -69,6 +69,7 @@ class OTPAuth
         sink(issuer);
         sink("&staticPrefix=");
         sink(staticPrefix);
+        // dfmt on
     }
 
     string totp(Digest)(Digest digest, long time)
@@ -86,7 +87,8 @@ class OTPAuth
         otp = otp & 0x7FFFFFFF;
         otp = otp % (pow(10, digits));
 
-        return format("%s%0" ~ digits.to!string ~ "d",staticPrefix, otp);
+        auto formatString = i"%s%0$(digits)d".text;
+        return format(formatString, staticPrefix, otp);
     }
 
     string totp(long time)
@@ -101,7 +103,7 @@ class OTPAuth
         case "SHA512":
             return totp(hmac!SHA512(s), time);
         default:
-            throw new Exception("Cannot handle digest '" ~ algorithm ~ "'");
+            throw new Exception(i"Cannot handle digest '$(algorithm)'".text);
         }
     }
 }
