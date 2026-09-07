@@ -11,11 +11,10 @@ import otpauth : OTPAuth;
 import packageinfo : packages;
 import std.algorithm : filter, find, fold, map, sort, startsWith;
 import std.array : array;
-import std.conv : to;
+import std.conv : text, to;
 import std.datetime : Clock;
 import std.exception : enforce;
 import std.file : remove;
-import std.format : format;
 import std.functional : not;
 import std.process : environment, escapeShellCommand, execute, executeShell, spawnProcess, wait;
 import std.range : empty;
@@ -48,7 +47,7 @@ int editData(string accountsBase, EncryptDecrypt encdec, Node settings)
     }
 
     auto exitCode = [editor, filename].spawnProcess.wait;
-    (exitCode == 0).enforce("Cannot spawn '%s'".format(editor));
+    (exitCode == 0).enforce(i"Cannot spawn '$(editor)'".text);
 
     encdec.encrypt(filename, accountsBase, settings);
 
@@ -57,7 +56,7 @@ int editData(string accountsBase, EncryptDecrypt encdec, Node settings)
 
 string accountsFile(string accountsBase, string extension)
 {
-    return accountsBase ~ "." ~ extension;
+    return i"$(accountsBase).$(extension)".text;
 }
 
 class EncryptDecrypt
@@ -92,7 +91,7 @@ class GPGEncryptDecrypt : EncryptDecrypt
           "--output",
           outputFile,
           file,
-        ].executeCommand("Cannot decrypt '%s'".format(file), settings);
+        ].executeCommand(i"Cannot decrypt '$(file)'".text, settings);
         // dfmt on
     }
 
@@ -105,7 +104,7 @@ class GPGEncryptDecrypt : EncryptDecrypt
           "--decrypt",
           "--quiet",
           file
-        ].executeCommand("Cannot decrypt '%s'".format(file), settings).output;
+        ].executeCommand("Cannot decrypt '$(file)'".text, settings).output;
         // dfmt on
     }
 
@@ -120,7 +119,7 @@ class GPGEncryptDecrypt : EncryptDecrypt
             "--quiet",
             "--output", file,
             input
-        ].executeCommand("Cannot encrypt '%s'".format(file), settings);
+        ].executeCommand("Cannot encrypt $(file)'".text, settings);
         // dfmt on
     }
 }
@@ -134,7 +133,7 @@ class AgeEncryptDecrypt : EncryptDecrypt
 
     string id(Node settings)
     {
-        return environment["HOME"] ~ "/.config/age/" ~ settings["age-key"].as!string;
+        return i"$(environment["HOME"])/.config/age/$(settings["age-key"].as!string)".text;
     }
 
     override void decryptToFile(string accountsBase, string outputFile, Node settings)
@@ -147,7 +146,7 @@ class AgeEncryptDecrypt : EncryptDecrypt
           "--identity",  id(settings),
           "--output", outputFile,
           file
-        ].executeCommand("Cannot decrypt '%s'".format(file), settings);
+        ].executeCommand("Cannot decrypt '$(file)'".text, settings);
         // dfmt on
     }
 
@@ -160,7 +159,7 @@ class AgeEncryptDecrypt : EncryptDecrypt
             "--decrypt",
             "--identity", id(settings),
             file,
-        ].executeCommand("Cannot decrypt '%s'".format(file), settings).output;
+        ].executeCommand("Cannot decrypt '$(file)'".text, settings).output;
         // dfmt on
     }
 
@@ -174,7 +173,7 @@ class AgeEncryptDecrypt : EncryptDecrypt
             "--identity", id(settings),
             "--output", file,
             input,
-        ].executeCommand("Cannot encrypt '%s'".format(file), settings);
+        ].executeCommand("Cannot encrypt '$(file)'".text, settings);
         // dfmt on
     }
 }
@@ -277,19 +276,19 @@ struct List
     string filter = "";
 }
 
-@Command("edit", "e")
+@(Command("edit", "e").Description("Edit totps"))
 struct Edit
 {
 }
 
-@Command("copy", "c")
+@(Command("copy", "c").Description("Copy selected totp to the clipboard"))
 struct Copy
 {
     @(PositionalArgument(0).Optional())
     string filter = "";
 }
 
-@Command("openvpn")
+@(Command("openvpn").Description("Run openvpn with totp credentials"))
 struct OpenVPN
 {
     @(NamedArgument.Required())
@@ -368,7 +367,7 @@ auto toEncryption(string s)
     return s.to!Encryption.toObject;
 }
 
-string credentialsFileName() => format!("%s/tmp/openvpn-credentials")(environment.get("HOME"));
+string credentialsFileName() => i"$(environment.get("HOME"))/tmp/openvpn-credentials".text;
 extern (C) void signal(int sig, void function(int));
 extern (C) void exit(int exit_val);
 
@@ -408,7 +407,7 @@ int _main(Arguments arguments)
             }
             else
             {
-                auto strings = otps.map!(otp => "%s/%s: %s".format(otp.issuer.green, otp.account, otp.totp(now))).array;
+                auto strings = otps.map!(otp => i"$(otp.issuer.green)/$(otp.account): $(otp.totp(now))".text).array;
                 auto selection = fuzzed(strings);
                 if (selection !is null)
                 {
@@ -416,7 +415,7 @@ int _main(Arguments arguments)
                 }
             }
             if (code !is null) {
-                auto result = "bash -c 'echo -n %s | %s'".format(code, copy2ClipboardCommand).executeShell;
+                auto result = "bash -c 'echo -n $(code) | $(copy2ClipboardCommand)'".text.executeShell;
                 if (result.status == 0)
                 {
                     "Copied otp to clipboard".writeln;
@@ -432,7 +431,7 @@ int _main(Arguments arguments)
             {
                 code = otps[0].totp(now);
             } else {
-                throw new Exception("More than one totp config found for " ~ openVpn.filter);
+                throw new Exception(i"More than one totp config found for $(openVpn.filter)".text);
             }
             {
                 auto credentialsFile = File(credentialsFileName, "w");
