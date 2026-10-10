@@ -104,7 +104,7 @@ class GPGEncryptDecrypt : EncryptDecrypt
           "--decrypt",
           "--quiet",
           file
-        ].executeCommand("Cannot decrypt '$(file)'".text, settings).output;
+        ].executeCommand(i"Cannot decrypt '$(file)'".text, settings).output;
         // dfmt on
     }
 
@@ -119,7 +119,7 @@ class GPGEncryptDecrypt : EncryptDecrypt
             "--quiet",
             "--output", file,
             input
-        ].executeCommand("Cannot encrypt $(file)'".text, settings);
+        ].executeCommand(i"Cannot encrypt '$(file)'".text, settings);
         // dfmt on
     }
 }
@@ -146,7 +146,7 @@ class AgeEncryptDecrypt : EncryptDecrypt
           "--identity",  id(settings),
           "--output", outputFile,
           file
-        ].executeCommand("Cannot decrypt '$(file)'".text, settings);
+        ].executeCommand(i"Cannot decrypt '$(file)'".text, settings);
         // dfmt on
     }
 
@@ -159,7 +159,7 @@ class AgeEncryptDecrypt : EncryptDecrypt
             "--decrypt",
             "--identity", id(settings),
             file,
-        ].executeCommand("Cannot decrypt '$(file)'".text, settings).output;
+        ].executeCommand(i"Cannot decrypt '$(file)'".text, settings).output;
         // dfmt on
     }
 
@@ -173,7 +173,7 @@ class AgeEncryptDecrypt : EncryptDecrypt
             "--identity", id(settings),
             "--output", file,
             input,
-        ].executeCommand("Cannot encrypt '$(file)'".text, settings);
+        ].executeCommand(i"Cannot encrypt '$(file)'".text, settings);
         // dfmt on
     }
 }
@@ -415,7 +415,7 @@ int _main(Arguments arguments)
                 }
             }
             if (code !is null) {
-                auto result = "bash -c 'echo -n $(code) | $(copy2ClipboardCommand)'".text.executeShell;
+                auto result = i"bash -c 'echo -n $(code) | $(copy2ClipboardCommand)'".text.executeShell;
                 if (result.status == 0)
                 {
                     "Copied otp to clipboard".writeln;

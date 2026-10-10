@@ -9,8 +9,8 @@
 		"fuzzed": "0.0.3+commit.2.g6b246aa",
 		"profiled": "0.0.2",
 		"tinyendian": "0.2.0",
-		"tui": "0.0.4",
-		"unit-threaded": "2.2.3",
+		"tui": "0.0.5",
+		"unit-threaded": "2.2.6",
 		"urld": "2.1.1"
 	}
 }
