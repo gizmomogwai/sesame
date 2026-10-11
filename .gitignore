@@ -6,3 +6,4 @@ docs/
 *.lst
 out/main
 linux-out
+result

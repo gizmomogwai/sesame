@@ -10,7 +10,7 @@ configuration "sesame" {
   dependency "colored" version="~>0.0.33"
   dependency "asciitable" version="~>0.0.17"
   dependency "argparse" version="~>2.0.2"
-  dependency "fuzzed" version="*"
+  dependency "fuzzed" repository="git+https://github.com/gizmomogwai/fuzzed.git" version="c17a3c00c1afa6bb4f130a64da3ed4adbeed7848"
   dependency "dyaml" version="~>0.10.0"
 
   targetType "executable"

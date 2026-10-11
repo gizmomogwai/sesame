@@ -14,7 +14,7 @@ enum PackageInfo[] packages = [
         PackageInfo("base32", "0.2.0", "BSL-1.0"),
         PackageInfo("dyaml", "0.10.0", "BSL-1.0"),
         PackageInfo("tinyendian", "0.2.0", "Boost 1.0"),
-        PackageInfo("fuzzed", "0.0.3+commit.5.gc17a3c0", "MIT"),
+        PackageInfo("fuzzed", "0.0.4", "MIT"),
         PackageInfo("tui", "0.0.5", "MIT"),
         PackageInfo("urld", "2.1.1", "MIT"),
     ];

@@ -1,0 +1,49 @@
+{
+  "dependencies": {
+    "argparse": {
+      "version": "2.0.2",
+      "sha256": "1p3496rcndgaf68mxizfi4wrkf5frgzzfpp9frlvbjnkinizb2q9"
+    },
+    "asciitable": {
+      "version": "0.0.17",
+      "sha256": "1kpbsnbq7kf9piyjzkm3ynsnzbhxfsr4kkii0f342n3w4xay8mwg"
+    },
+    "base32": {
+      "version": "0.2.0",
+      "sha256": "19ynnl3s6qbl2cq9szg5gcbfjsdb7wc7pxld9ckdbld160800jdy"
+    },
+    "colored": {
+      "version": "0.0.34",
+      "sha256": "16frki7dcs1dhxv2dwkc36nbpb5xhqwzkjycjjhflfv7xsbg3dg3"
+    },
+    "dyaml": {
+      "version": "0.10.0",
+      "sha256": "1sjz76iwpxqljgi2j6gk1x78i44gm8s4i7kaqhs0x92kdp2za92j"
+    },
+    "fuzzed": {
+      "version": "c17a3c00c1afa6bb4f130a64da3ed4adbeed7848",
+      "repository": "https://github.com/gizmomogwai/fuzzed.git",
+      "sha256": "0pwxcns401yrwszw7yjsch7za3frq03qdksr5bga9npc8286a7gj"
+    },
+    "profiled": {
+      "version": "0.0.2",
+      "sha256": "09i9x4hrshyx5jg3k1f4hz6birym5a2hi6gvpmbq401pr23nic5b"
+    },
+    "tinyendian": {
+      "version": "0.2.0",
+      "sha256": "0ipf6msrx80lsx81qqlwl0xladk79avv1rnzdlfzjc49wrsr9fia"
+    },
+    "tui": {
+      "version": "0.0.5",
+      "sha256": "1rl5201x0psa6827jbqfiwql5q96dl5l08cn8b3gxqgyaspflx3v"
+    },
+    "unit-threaded": {
+      "version": "2.2.6",
+      "sha256": "1xdrhhqfbzr7ksxxf561a355vshcw0ih9qr2509naixxl28p67r4"
+    },
+    "urld": {
+      "version": "2.1.1",
+      "sha256": "1ipkwy8fg62r489dr7da9bkfggv1n2d9cwhdarc7pzbv1yk8rh49"
+    }
+  }
+}
