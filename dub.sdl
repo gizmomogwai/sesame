@@ -17,7 +17,7 @@ configuration "sesame" {
   targetName "sesame"
   targetPath "out/main"
 
-  preGenerateCommands "$DUB run packageinfo"
+  preGenerateCommands "$DUB run packageinfo || printf '\\033[31mWarning: cannot run packageinfo, using checked-in out/generated/packageinfo/packageinfo.d\\033[0m\\n' >&2"
   sourcePaths "source" "out/generated/packageinfo"
   importPaths "source" "out/generated/packageinfo"
 }

@@ -4,5 +4,5 @@ __dummy.html
 docs/
 *.exe
 *.lst
-out
+out/main
 linux-out
